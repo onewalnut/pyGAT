@@ -32,7 +32,8 @@ parser.add_argument('--alpha', type=float, default=0.2, help='Alpha for the leak
 parser.add_argument('--patience', type=int, default=100, help='Patience')
 
 args = parser.parse_args()
-args.cuda = not args.no_cuda and torch.cuda.is_available()
+# args.cuda = not args.no_cuda and torch.cuda.is_available()
+args.cuda = False
 
 random.seed(args.seed)
 np.random.seed(args.seed)
@@ -62,14 +63,17 @@ optimizer = optim.Adam(model.parameters(),
                        lr=args.lr, 
                        weight_decay=args.weight_decay)
 
+device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+torch.backends.cudnn.enabled = True
+
 if args.cuda:
-    model.cuda()
-    features = features.cuda()
-    adj = adj.cuda()
-    labels = labels.cuda()
-    idx_train = idx_train.cuda()
-    idx_val = idx_val.cuda()
-    idx_test = idx_test.cuda()
+    model.to(device)
+    features = features.to(device)
+    adj = adj.to(device)
+    labels = labels.to(device)
+    idx_train = idx_train.to(device)
+    idx_val = idx_val.to(device)
+    idx_test = idx_test.to(device)
 
 features, adj, labels = Variable(features), Variable(adj), Variable(labels)
 
@@ -112,6 +116,7 @@ def compute_test():
           "accuracy= {:.4f}".format(acc_test.data[0]))
 
 # Train model
+torch.cuda.empty_cache()
 t_total = time.time()
 loss_values = []
 bad_counter = 0
@@ -150,5 +155,6 @@ print("Total time elapsed: {:.4f}s".format(time.time() - t_total))
 print('Loading {}th epoch'.format(best_epoch))
 model.load_state_dict(torch.load('{}.pkl'.format(best_epoch)))
 
-# Testing
-compute_test()
+with torch.no_grad():
+    # Testing
+    compute_test()
